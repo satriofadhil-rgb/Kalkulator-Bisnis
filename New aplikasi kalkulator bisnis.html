@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Bisnis Multifungsi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Mengaktifkan dark mode manual
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        corporate: {
+                            50: '#f4f6f8',
+                            100: '#e3e8ee',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        finance: {
+                            500: '#10b981', // emerald
+                            600: '#059669',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Menyembunyikan panah pada input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+            transform: translateY(10px);
+        }
+
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .result-box {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Mode Gelap untuk Result Box agar sedikit kontras */
+        .dark .result-box {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+        }
+
+        /* Notifikasi error / Toast */
+        #error-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #ef4444;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 50;
+            font-weight: 500;
+        }
+        
+        #error-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Konfigurasi Khusus Saat Dicetak (Print/PDF) */
+        @media print {
+            body { background-color: white !important; }
+            header, .tab-menu-container, button:not(.btn-print), #error-toast { display: none !important; }
+            .bg-white, .dark .bg-slate-800 { 
+                box-shadow: none !important; 
+                border: none !important; 
+                padding: 0 !important;
+            }
+            .result-box, .dark .result-box {
+                background: white !important;
+                border: 2px solid #cbd5e1 !important;
+                color: black !important;
+                page-break-inside: avoid;
+            }
+            .result-box *, .dark .result-box * { color: black !important; }
+            .result-box h3 { color: #059669 !important; } /* Warna hijau tetap terlihat saat dicetak */
+            main { padding-top: 0 !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 bg-[#f8fafc] dark:bg-slate-900 dark:text-slate-200 antialiased min-h-screen flex flex-col transition-colors duration-300">
+
+    <header class="bg-corporate-900 dark:bg-black text-white py-6 shadow-md transition-colors duration-300">
+        <div class="container mx-auto px-4 max-w-4xl flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">Kalkulator Bisnis Pro</h1>
+                <p class="text-corporate-100 text-sm mt-1">Alat perhitungan finansial untuk keputusan bisnis Anda</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- Tombol Print -->
+                <button onclick="window.print()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-full transition-colors" title="Cetak atau Simpan PDF">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                </button>
+                <!-- Tombol Dark Mode -->
+                <button onclick="toggleDarkMode()" id="theme-toggle" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-full transition-colors" title="Ubah Tema">
+                    <!-- Icon Sun (default hidden, shows in dark mode) -->
+                    <svg id="theme-toggle-light-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <!-- Icon Moon -->
+                    <svg id="theme-toggle-dark-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-4xl">
+        
+        <!-- Tab Menu -->
+        <div class="tab-menu-container flex overflow-x-auto bg-white dark:bg-slate-800 rounded-t-xl border-b border-slate-200 dark:border-slate-700 hide-scrollbar shadow-sm transition-colors duration-300">
+            <button onclick="switchTab('margin')" id="btn-margin" class="tab-btn active whitespace-nowrap px-6 py-4 text-sm font-medium border-b-2 border-corporate-900 text-corporate-900 dark:border-white dark:text-white focus:outline-none transition-colors">
+                1. Profit Margin
+            </button>
+            <button onclick="switchTab('bep')" id="btn-bep" class="tab-btn whitespace-nowrap px-6 py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none transition-colors">
+                2. Break-Even Point
+            </button>
+            <button onclick="switchTab('roi')" id="btn-roi" class="tab-btn whitespace-nowrap px-6 py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none transition-colors">
+                3. Return on Investment
+            </button>
+            <button onclick="switchTab('harga')" id="btn-harga" class="tab-btn whitespace-nowrap px-6 py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none transition-colors">
+                4. Harga Akhir
+            </button>
+            <button onclick="switchTab('depresiasi')" id="btn-depresiasi" class="tab-btn whitespace-nowrap px-6 py-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none transition-colors">
+                5. Penyusutan Aset
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-b-xl shadow-sm border border-t-0 border-slate-200 dark:border-slate-700 transition-colors duration-300">
+            
+            <!-- Tab 1: Margin -->
+            <div id="tab-margin" class="tab-content active">
+                <h2 class="text-xl font-semibold mb-6 text-corporate-900 dark:text-white">Kalkulator Margin Keuntungan</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Harga Modal / HPP (Rp)</label>
+                            <input type="text" id="margin-hpp" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 50.000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Harga Jual (Rp)</label>
+                            <input type="text" id="margin-jual" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 75.000">
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button onclick="calcMargin()" class="flex-1 bg-finance-600 hover:bg-finance-500 text-white font-medium py-3 rounded-lg transition-colors">Hitung</button>
+                            <button onclick="resetForm('margin')" class="px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-medium py-3 rounded-lg transition-colors">Reset</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box flex flex-col justify-center">
+                        <p class="text-slate-300 text-sm mb-1">Keuntungan Kotor</p>
+                        <h3 id="margin-res-kotor" class="text-3xl font-bold text-finance-500 mb-4">Rp 0</h3>
+                        
+                        <p class="text-slate-300 text-sm mb-1">Persentase Margin Keuntungan</p>
+                        <h3 id="margin-res-persen" class="text-2xl font-bold">0%</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: BEP -->
+            <div id="tab-bep" class="tab-content">
+                <h2 class="text-xl font-semibold mb-6 text-corporate-900 dark:text-white">Kalkulator Break-Even Point (BEP)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Biaya Tetap / Fixed Cost (Rp)</label>
+                            <input type="text" id="bep-fixed" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 10.000.000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Biaya Variabel per Unit (Rp)</label>
+                            <input type="text" id="bep-var" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 15.000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Harga Jual per Unit (Rp)</label>
+                            <input type="text" id="bep-jual" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 35.000">
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button onclick="calcBEP()" class="flex-1 bg-finance-600 hover:bg-finance-500 text-white font-medium py-3 rounded-lg transition-colors">Hitung</button>
+                            <button onclick="resetForm('bep')" class="px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-medium py-3 rounded-lg transition-colors">Reset</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box flex flex-col justify-center">
+                        <p class="text-slate-300 text-sm mb-1">BEP Unit (Yang harus terjual)</p>
+                        <h3 id="bep-res-unit" class="text-3xl font-bold text-finance-500 mb-4">0 Unit</h3>
+                        
+                        <p class="text-slate-300 text-sm mb-1">Total Pendapatan saat BEP</p>
+                        <h3 id="bep-res-rupiah" class="text-2xl font-bold">Rp 0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: ROI -->
+            <div id="tab-roi" class="tab-content">
+                <h2 class="text-xl font-semibold mb-6 text-corporate-900 dark:text-white">Kalkulator Return on Investment (ROI)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Total Biaya Investasi (Rp)</label>
+                            <input type="text" id="roi-investasi" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 50.000.000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Total Pendapatan/Nilai Akhir (Rp)</label>
+                            <input type="text" id="roi-pendapatan" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 65.000.000">
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button onclick="calcROI()" class="flex-1 bg-finance-600 hover:bg-finance-500 text-white font-medium py-3 rounded-lg transition-colors">Hitung</button>
+                            <button onclick="resetForm('roi')" class="px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-medium py-3 rounded-lg transition-colors">Reset</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box flex flex-col justify-center relative overflow-hidden">
+                        <p class="text-slate-300 text-sm mb-1">Persentase ROI</p>
+                        <h3 id="roi-res-persen" class="text-4xl font-bold text-white mb-2">0%</h3>
+                        
+                        <div class="mt-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700 inline-block w-max">
+                            <span class="text-sm text-slate-300">Status: </span>
+                            <span id="roi-res-status" class="font-bold text-white uppercase">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Harga Akhir -->
+            <div id="tab-harga" class="tab-content">
+                <h2 class="text-xl font-semibold mb-6 text-corporate-900 dark:text-white">Kalkulator Harga Akhir (Diskon & Pajak)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Harga Asli (Rp)</label>
+                            <input type="text" id="harga-asli" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 100.000">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Diskon (%)</label>
+                                <input type="number" id="harga-diskon" min="0" max="100" class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Pajak/PPN (%)</label>
+                                <input type="number" id="harga-pajak" min="0" max="100" class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" placeholder="11">
+                            </div>
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button onclick="calcHarga()" class="flex-1 bg-finance-600 hover:bg-finance-500 text-white font-medium py-3 rounded-lg transition-colors">Hitung</button>
+                            <button onclick="resetForm('harga')" class="px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-medium py-3 rounded-lg transition-colors">Reset</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box flex flex-col justify-center">
+                        <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-700">
+                            <p class="text-slate-300 text-sm">Potongan Harga</p>
+                            <p id="harga-res-potongan" class="font-medium text-red-400">- Rp 0</p>
+                        </div>
+                        <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-700">
+                            <p class="text-slate-300 text-sm">Nominal Pajak</p>
+                            <p id="harga-res-pajak" class="font-medium text-yellow-400">+ Rp 0</p>
+                        </div>
+                        <p class="text-slate-300 text-sm mb-1 mt-2">Harga Akhir Yang Dibayar</p>
+                        <h3 id="harga-res-akhir" class="text-3xl font-bold text-finance-500">Rp 0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Penyusutan Aset -->
+            <div id="tab-depresiasi" class="tab-content">
+                <h2 class="text-xl font-semibold mb-6 text-corporate-900 dark:text-white">Kalkulator Penyusutan Aset (Garis Lurus)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Harga Perolehan Aset (Rp)</label>
+                            <input type="text" id="dep-harga" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 15.000.000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nilai Sisa/Residu (Rp) - Opsional</label>
+                            <input type="text" id="dep-sisa" class="input-rupiah w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" inputmode="numeric" placeholder="Contoh: 3.000.000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Umur Ekonomis (Tahun)</label>
+                            <input type="number" id="dep-umur" min="1" class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-corporate-900 dark:focus:border-finance-500 transition-colors" placeholder="Contoh: 5">
+                        </div>
+                        <div class="flex space-x-3 pt-2">
+                            <button onclick="calcDepresiasi()" class="flex-1 bg-finance-600 hover:bg-finance-500 text-white font-medium py-3 rounded-lg transition-colors">Hitung</button>
+                            <button onclick="resetForm('depresiasi')" class="px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-medium py-3 rounded-lg transition-colors">Reset</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box flex flex-col justify-center">
+                        <p class="text-slate-300 text-sm mb-1">Beban Penyusutan per Tahun</p>
+                        <h3 id="dep-res-tahun" class="text-3xl font-bold text-finance-500 mb-4">Rp 0</h3>
+                        
+                        <p class="text-slate-300 text-sm mb-1">Beban Penyusutan per Bulan</p>
+                        <h3 id="dep-res-bulan" class="text-2xl font-bold">Rp 0</h3>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Notifikasi Error (Custom Alert) -->
+    <div id="error-toast">Harap isi semua bidang dengan angka yang valid!</div>
+
+    <script>
+        // Logika Dark Mode
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const darkIcon = document.getElementById('theme-toggle-dark-icon');
+            const lightIcon = document.getElementById('theme-toggle-light-icon');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+            } else {
+                html.classList.add('dark');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
+            }
+        }
+
+        function switchTab(tabId) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                // Menghapus class active (Warna Corporate / Putih di Dark Mode)
+                btn.classList.remove('border-corporate-900', 'text-corporate-900', 'dark:border-white', 'dark:text-white');
+                // Menambah class non-active (Warna Slate)
+                btn.classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+            });
+
+            document.getElementById('tab-' + tabId).classList.add('active');
+            
+            const activeBtn = document.getElementById('btn-' + tabId);
+            // Menghapus class non-active
+            activeBtn.classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+            // Menambah class active
+            activeBtn.classList.add('border-corporate-900', 'text-corporate-900', 'dark:border-white', 'dark:text-white');
+        }
+
+        function formatRupiahToString(angka) {
+            let number_string = angka.toString().replace(/[^,\d]/g, ''),
+                split = number_string.split(','),
+                sisa  = split[0].length % 3,
+                rupiah  = split[0].substr(0, sisa),
+                ribuan  = split[0].substr(sisa).match(/\d{3}/gi);
+
+            if (ribuan) {
+                let separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+            return rupiah;
+        }
+
+        function parseRupiahToNumber(rupiahString) {
+            if (!rupiahString || rupiahString.trim() === '') return NaN; 
+            return parseFloat(rupiahString.replace(/\./g, '').replace(/,/g, '.'));
+        }
+
+        document.querySelectorAll('.input-rupiah').forEach(input => {
+            input.addEventListener('input', function(e) {
+                this.value = formatRupiahToString(this.value);
+            });
+        });
+
+        function showError(message) {
+            const toast = document.getElementById('error-toast');
+            toast.innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function validateInputs(inputs) {
+            for (let val of inputs) {
+                if (val === '' || isNaN(val)) return false;
+            }
+            return true;
+        }
+
+        function resetForm(tabId) {
+            const tab = document.getElementById('tab-' + tabId);
+            const inputs = tab.querySelectorAll('input');
+            inputs.forEach(input => input.value = '');
+            
+            if(tabId === 'margin') {
+                document.getElementById('margin-res-kotor').innerText = 'Rp 0';
+                document.getElementById('margin-res-persen').innerText = '0%';
+                document.getElementById('margin-res-kotor').classList.replace('text-red-400', 'text-finance-500');
+            } else if(tabId === 'bep') {
+                document.getElementById('bep-res-unit').innerText = '0 Unit';
+                document.getElementById('bep-res-rupiah').innerText = 'Rp 0';
+            } else if (tabId === 'roi') {
+                document.getElementById('roi-res-persen').innerText = '0%';
+                document.getElementById('roi-res-status').innerText = '-';
+                document.getElementById('roi-res-status').className = 'font-bold text-white uppercase';
+                document.getElementById('roi-res-persen').className = 'text-4xl font-bold text-white mb-2';
+            } else if (tabId === 'harga') {
+                document.getElementById('harga-res-potongan').innerText = '- Rp 0';
+                document.getElementById('harga-res-pajak').innerText = '+ Rp 0';
+                document.getElementById('harga-res-akhir').innerText = 'Rp 0';
+            } else if (tabId === 'depresiasi') {
+                document.getElementById('dep-res-tahun').innerText = 'Rp 0';
+                document.getElementById('dep-res-bulan').innerText = 'Rp 0';
+            }
+        }
+
+        // 1. Profit Margin
+        function calcMargin() {
+            let hpp = parseRupiahToNumber(document.getElementById('margin-hpp').value);
+            let jual = parseRupiahToNumber(document.getElementById('margin-jual').value);
+
+            if (!validateInputs([hpp, jual])) {
+                showError("Harap masukkan Harga Modal dan Harga Jual dengan benar!");
+                return;
+            }
+
+            let untung = jual - hpp;
+            let persen = 0;
+            
+            if (jual > 0) {
+                persen = (untung / jual) * 100;
+            }
+
+            document.getElementById('margin-res-kotor').innerText = (untung < 0 ? "- Rp " : "Rp ") + formatRupiahToString(Math.abs(untung));
+            document.getElementById('margin-res-persen').innerText = persen.toFixed(2) + "%";
+            
+            if (untung < 0) {
+                document.getElementById('margin-res-kotor').classList.replace('text-finance-500', 'text-red-400');
+            } else {
+                document.getElementById('margin-res-kotor').classList.replace('text-red-400', 'text-finance-500');
+            }
+        }
+
+        // 2. Break-Even Point (BEP)
+        function calcBEP() {
+            let fixed = parseRupiahToNumber(document.getElementById('bep-fixed').value);
+            let varCost = parseRupiahToNumber(document.getElementById('bep-var').value);
+            let jual = parseRupiahToNumber(document.getElementById('bep-jual').value);
+
+            if (!validateInputs([fixed, varCost, jual])) {
+                showError("Harap masukkan Biaya Tetap, Variabel, dan Harga Jual!");
+                return;
+            }
+
+            if (jual <= varCost) {
+                showError("Harga Jual harus lebih besar dari Biaya Variabel per Unit!");
+                return;
+            }
+
+            let unitBerapa = fixed / (jual - varCost);
+            let totalRupiah = unitBerapa * jual;
+
+            unitBerapa = Math.ceil(unitBerapa); 
+
+            document.getElementById('bep-res-unit').innerText = formatRupiahToString(unitBerapa) + " Unit";
+            document.getElementById('bep-res-rupiah').innerText = "Rp " + formatRupiahToString(Math.round(totalRupiah));
+        }
+
+        // 3. Return on Investment (ROI)
+        function calcROI() {
+            let investasi = parseRupiahToNumber(document.getElementById('roi-investasi').value);
+            let pendapatan = parseRupiahToNumber(document.getElementById('roi-pendapatan').value);
+
+            if (!validateInputs([investasi, pendapatan])) {
+                showError("Harap masukkan Total Investasi dan Pendapatan!");
+                return;
+            }
+            if (investasi <= 0) {
+                showError("Nilai investasi harus lebih dari 0!");
+                return;
+            }
+
+            let roi = ((pendapatan - investasi) / investasi) * 100;
+            
+            let statusText = "Impas";
+            let statusColor = "text-yellow-400";
+
+            if (roi > 0) {
+                statusText = "Menguntungkan";
+                statusColor = "text-finance-500";
+            } else if (roi < 0) {
+                statusText = "Merugi";
+                statusColor = "text-red-400";
+            }
+
+            document.getElementById('roi-res-persen').innerText = roi.toFixed(2) + "%";
+            document.getElementById('roi-res-status').innerText = statusText;
+            document.getElementById('roi-res-status').className = `font-bold uppercase ${statusColor}`;
+            
+            const persenEl = document.getElementById('roi-res-persen');
+            persenEl.className = `text-4xl font-bold mb-2 ${roi > 0 ? 'text-finance-500' : (roi < 0 ? 'text-red-400' : 'text-white')}`;
+        }
+
+        // 4. Harga Akhir (Diskon & Pajak)
+        function calcHarga() {
+            let harga = parseRupiahToNumber(document.getElementById('harga-asli').value);
+            let diskon = parseFloat(document.getElementById('harga-diskon').value) || 0;
+            let pajak = parseFloat(document.getElementById('harga-pajak').value) || 0;
+
+            if (!validateInputs([harga])) {
+                showError("Harap masukkan Harga Asli!");
+                return;
+            }
+            if (diskon < 0 || diskon > 100 || pajak < 0) {
+                showError("Persentase diskon/pajak tidak valid!");
+                return;
+            }
+
+            let nilaiDiskon = harga * (diskon / 100);
+            let hargaSetelahDiskon = harga - nilaiDiskon;
+            let nilaiPajak = hargaSetelahDiskon * (pajak / 100);
+            let hargaAkhir = hargaSetelahDiskon + nilaiPajak;
+
+            document.getElementById('harga-res-potongan').innerText = "- Rp " + formatRupiahToString(Math.round(nilaiDiskon));
+            document.getElementById('harga-res-pajak').innerText = "+ Rp " + formatRupiahToString(Math.round(nilaiPajak));
+            document.getElementById('harga-res-akhir').innerText = "Rp " + formatRupiahToString(Math.round(hargaAkhir));
+        }
+        
+        // 5. Penyusutan Aset (Garis Lurus)
+        function calcDepresiasi() {
+            let harga = parseRupiahToNumber(document.getElementById('dep-harga').value);
+            // Nilai sisa boleh kosong (0)
+            let sisaInput = document.getElementById('dep-sisa').value;
+            let sisa = sisaInput ? parseRupiahToNumber(sisaInput) : 0; 
+            let umur = parseFloat(document.getElementById('dep-umur').value);
+
+            if (!validateInputs([harga, umur]) || umur <= 0) {
+                showError("Harap masukkan Harga Perolehan dan Umur Ekonomis yang valid!");
+                return;
+            }
+            
+            if (harga <= sisa) {
+                showError("Harga Perolehan harus lebih besar dari Nilai Sisa!");
+                return;
+            }
+
+            let penyusutanTahun = (harga - sisa) / umur;
+            let penyusutanBulan = penyusutanTahun / 12;
+
+            document.getElementById('dep-res-tahun').innerText = "Rp " + formatRupiahToString(Math.round(penyusutanTahun));
+            document.getElementById('dep-res-bulan').innerText = "Rp " + formatRupiahToString(Math.round(penyusutanBulan));
+        }
+    </script>
+</body>
+</html>
